@@ -4,5 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Served from https://heytonyy.github.io/ml-with-pokemon/
+  base: '/ml-with-pokemon/',
   plugins: [tailwindcss(),react()],
 })
