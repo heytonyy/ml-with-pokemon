@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { Client, handle_file } from "@gradio/client";
 import type { Prediction } from "../types";
 import { GRADIO_APP } from "../config";
@@ -21,14 +21,41 @@ const PokemonClassifier = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      setPreview(URL.createObjectURL(file));
-      setPrediction(null);
-      setError(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const selectImage = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file");
+      return;
     }
+    if (preview) URL.revokeObjectURL(preview);
+    setSelectedImage(file);
+    setPreview(URL.createObjectURL(file));
+    setPrediction(null);
+    setError(null);
+  };
+
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    selectImage(e.target.files?.[0]);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLLabelElement>) => {
+    // Ignore drag events moving between child elements of the drop zone
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    selectImage(e.dataTransfer.files[0]);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -63,23 +90,44 @@ const PokemonClassifier = () => {
       <h1 className="text-2xl font-bold mb-6">Pokemon Gen1 Classifier</h1>
 
       <form onSubmit={handleSubmit}>
-        <div className="mb-4">
+        <label
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`mb-4 flex h-56 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed transition-colors duration-200 focus-within:ring-2 focus-within:ring-blue-400 ${
+            isDragging
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"
+          }`}
+        >
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            className="sr-only"
           />
-        </div>
-
-        {preview && (
-          <div className="mb-4">
+          {preview ? (
             <img
               src={preview}
               alt="Preview"
-              className="w-full h-48 object-cover rounded"
+              className="h-full w-full object-contain"
             />
-          </div>
+          ) : (
+            <div className="px-4 text-center text-gray-500">
+              <p className="font-semibold text-gray-700">
+                {isDragging ? "Drop it like it's hot!" : "Drag & drop a Pokemon image"}
+              </p>
+              <p className="mt-1 text-sm">
+                or <span className="font-semibold text-blue-600">click to browse</span>
+              </p>
+            </div>
+          )}
+        </label>
+
+        {selectedImage && (
+          <p className="-mt-2 mb-4 truncate text-center text-sm text-gray-500">
+            {selectedImage.name} · drop or click to change
+          </p>
         )}
 
         <button
